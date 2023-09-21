@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../Code"
+		},
+		{
+			"name": "test",
+			"path": ".."
+		},
+		{
+			"name": "dilithium test2",
+			"path": "../../dilithium test2"
+		},
+		{
+			"name": "test_2",
+			"path": "../../test_2"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"printstate.h": "c",
+			"crypto_aead.h": "c",
+			"poly.h": "c",
+			"printf-stdarg.h": "c",
+			"cstdio": "c",
+			"memory.h": "c",
+			"stdint.h": "c",
+			"stdio.h": "c",
+			"sign.h": "c"
+		}
+	}
+}

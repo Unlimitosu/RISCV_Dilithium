@@ -1,0 +1,4 @@
+{
+    "cmake.configureOnOpen": false,
+    "C_Cpp.default.compilerPath": "C:/Users/hojin/.platformio/packages/toolchain-riscv/bin/riscv64-unknown-elf-gcc.exe"
+}
