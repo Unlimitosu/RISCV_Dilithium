@@ -9,3 +9,4 @@ getcycles:
     bne a1, a2, getcycles
     ret
 .size getcycles,.-getcycles
+

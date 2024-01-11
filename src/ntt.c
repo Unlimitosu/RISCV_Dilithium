@@ -2,7 +2,6 @@
 #include "params.h"
 #include "reduce.h"
 #include <stdint.h>
-
 static const int32_t zetas[N] = {
     0,    25847, -2608894,  -518909,   237124,  -777960,  -876248,   466468,
     1826347,  2353451,  -359251, -2091905,  3119733, -2884855,  3111497,  2680103,
@@ -39,52 +38,43 @@ static const int32_t zetas[N] = {
 };
 
 /*************************************************
-* Name:        PQCLEAN_DILITHIUM3_CLEAN_ntt
+* Name:        ntt
 *
 * Description: Forward NTT, in-place. No modular reduction is performed after
 *              additions or subtractions. Output vector is in bitreversed order.
 *
-* Arguments:   - uint32_t p[N]: input/output coefficient arrayimage.png
+* Arguments:   - uint32_t p[N]: input/output coefficient array
 **************************************************/
-void PQCLEAN_DILITHIUM3_CLEAN_ntt(int32_t a[N]) {
-    unsigned int len, start, j, k;
-    int32_t zeta, t;
-    int cnt = 0;
-    k = 0;
-    for (len = 128; len > 0; len >>= 1) {
-        for (start = 0; start < N; start = j + len) {
-            zeta = zetas[++k];
-            for (j = start; j < start + len; ++j) {
-                t = PQCLEAN_DILITHIUM3_CLEAN_montgomery_reduce((int64_t)zeta * a[j + len]);
-                a[j + len] = a[j] - t;
-                a[j] = a[j] + t;
-            } 
-        }
-    }
-    // printf("pqclean butterfly cnt: %d\n", cnt);
+extern void ntt(int32_t a[N]);  // 2 layer merged NTT
+extern void intt(int32_t a[N]);  // 2 layer merged iNTT
+
+int32_t PQCLEAN_DILITHIUM2_CLEAN_montgomery_reduce(int64_t a) {
+    int32_t t;
+
+    t = (int32_t)((uint64_t)a * (uint64_t)QINV);
+    t = (a - (int64_t)t * Q) >> 32;
+    return t;
 }
 
-// a0, a1, a3, a4, a5, a6, t0, a7
-extern void ct_butterfly(int* a, int idx1, int idx2, int DILITHIUM_Q, int DILITHIUM_QINV, int zeta);
-
-void ntt_asm_only_butterfly(int32_t a[N]) {
+void PQCLEAN_DILITHIUM2_CLEAN_ntt(int32_t a[N]) {
     unsigned int len, start, j, k;
     int32_t zeta, t;
-    int cnt = 0;
+
     k = 0;
     for (len = 128; len > 0; len >>= 1) {
         for (start = 0; start < N; start = j + len) {
             zeta = zetas[++k];
             for (j = start; j < start + len; ++j) {
-                ct_butterfly(a, j, j+len, Q, QINV, zeta);
-            } 
+                t = PQCLEAN_DILITHIUM2_CLEAN_montgomery_reduce((int64_t)zeta * a[j + len]);
+                a[j + len] = a[j] - t;
+                a[j] = a[j] + t;
+            }
         }
     }
-    // printf("pqclean butterfly cnt: %d\n", cnt);
 }
 
 /*************************************************
-* Name:        PQCLEAN_DILITHIUM3_CLEAN_invntt_tomont
+* Name:        invntt_tomont
 *
 * Description: Inverse NTT and multiplication by Montgomery factor 2^32.
 *              In-place. No modular reductions after additions or
@@ -94,7 +84,7 @@ void ntt_asm_only_butterfly(int32_t a[N]) {
 *
 * Arguments:   - uint32_t p[N]: input/output coefficient array
 **************************************************/
-void PQCLEAN_DILITHIUM3_CLEAN_invntt_tomont(int32_t a[N]) {
+void invntt_tomont(int32_t a[N]) {
     unsigned int start, len, j, k;
     int32_t t, zeta;
     const int32_t f = 41978; // mont^2/256
@@ -107,12 +97,53 @@ void PQCLEAN_DILITHIUM3_CLEAN_invntt_tomont(int32_t a[N]) {
                 t = a[j];
                 a[j] = t + a[j + len];
                 a[j + len] = t - a[j + len];
-                a[j + len] = PQCLEAN_DILITHIUM3_CLEAN_montgomery_reduce((int64_t)zeta * a[j + len]);
+                a[j + len] = montgomery_reduce((int64_t)zeta * a[j + len]);
             }
         }
     }
 
     for (j = 0; j < N; ++j) {
-        a[j] = PQCLEAN_DILITHIUM3_CLEAN_montgomery_reduce((int64_t)f * a[j]);
+        a[j] = montgomery_reduce((int64_t)f * a[j]);
+    }
+}
+
+#define GS_BUTTERFLY(i1, i2, zeta)\                
+    t = a[i1];\
+    a[i1] = t + a[i2];\
+    a[i2] = t - a[i2];\
+    a[i2] = montgomery_reduce((int64_t)zeta * a[i2]);
+
+void invntt_tomont_merged(int32_t a[N]) {
+    unsigned int start, len, j, k;
+    int32_t t, zeta1, zeta2, zeta3;
+    const int32_t f = 41978; // mont^2/256
+    int dist = 1;
+
+    k = 256;
+    for (len = 1; len < N; len <<= 2) {
+        for (start = 0; start < N; start = j + len + dist) {
+                dist = len * 2;
+            zeta1 = -zetas[--k];
+            zeta2 = -zetas[--k];
+            zeta3 = -zetas[--k];
+            for (j = start; j < start + dist; ++j) {
+                // GS_BUTTERFLY(j, j+dist, zeta1)
+                // GS_BUTTERFLY(j+len, j+len+dist, zeta2)
+                
+                // GS_BUTTERFLY(j, j+len, zeta3)
+                // GS_BUTTERFLY(j+dist, j+len+dist, zeta3)
+/////////////////////////////////////////////////////////////////
+                GS_BUTTERFLY(j, j+len, zeta1)
+                GS_BUTTERFLY(j+dist, j+len+dist, zeta2)
+                
+                GS_BUTTERFLY(j, j+dist, zeta3)
+                GS_BUTTERFLY(j+len, j+len+dist, zeta3)
+            }
+        }
+        printf("%d\n", len);
+    }
+
+    for (j = 0; j < N; ++j) {
+        a[j] = montgomery_reduce((int64_t)f * a[j]);
     }
 }

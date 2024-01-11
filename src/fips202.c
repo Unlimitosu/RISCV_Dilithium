@@ -11,9 +11,10 @@
 #include <string.h>
 
 #include "fips202.h"
-
+#include "api.h"
+#include "params.h"
 #define NROUNDS 24
-#define ROL(a, offset) (((a) << (offset)) ^ ((a) >> (64 - (offset))))
+#define ROL(a, offset) (((uint64_t)(a) << (offset)) ^ ((uint64_t)(a) >> (64 - (offset))))
 
 /*************************************************
  * Name:        load64
@@ -70,7 +71,9 @@ static const uint64_t KeccakF_RoundConstants[NROUNDS] = {
  *
  * Arguments:   - uint64_t *state: pointer to input/output Keccak state
  **************************************************/
-static void KeccakF1600_StatePermute(uint64_t *state) {
+
+
+static void KeccakF1600_StatePermute(uint64_t* state) {
     int round;
 
     uint64_t Aba, Abe, Abi, Abo, Abu;
@@ -332,7 +335,6 @@ static void KeccakF1600_StatePermute(uint64_t *state) {
     state[23] = Aso;
     state[24] = Asu;
 }
-
 /*************************************************
  * Name:        keccak_absorb
  *
@@ -523,10 +525,6 @@ static void keccak_inc_squeeze(uint8_t *h, size_t outlen,
 }
 
 void shake128_inc_init(shake128incctx *state) {
-    state->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
     keccak_inc_init(state->ctx);
 }
 
@@ -543,22 +541,13 @@ void shake128_inc_squeeze(uint8_t *output, size_t outlen, shake128incctx *state)
 }
 
 void shake128_inc_ctx_clone(shake128incctx *dest, const shake128incctx *src) {
-    dest->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
     memcpy(dest->ctx, src->ctx, PQC_SHAKEINCCTX_BYTES);
 }
 
 void shake128_inc_ctx_release(shake128incctx *state) {
-    free(state->ctx);
 }
 
 void shake256_inc_init(shake256incctx *state) {
-    state->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
     keccak_inc_init(state->ctx);
 }
 
@@ -575,15 +564,10 @@ void shake256_inc_squeeze(uint8_t *output, size_t outlen, shake256incctx *state)
 }
 
 void shake256_inc_ctx_clone(shake256incctx *dest, const shake256incctx *src) {
-    dest->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
     memcpy(dest->ctx, src->ctx, PQC_SHAKEINCCTX_BYTES);
 }
 
 void shake256_inc_ctx_release(shake256incctx *state) {
-    free(state->ctx);
 }
 
 
@@ -599,10 +583,6 @@ void shake256_inc_ctx_release(shake256incctx *state) {
  *              - size_t inlen: length of input in bytes
  **************************************************/
 void shake128_absorb(shake128ctx *state, const uint8_t *input, size_t inlen) {
-    state->ctx = malloc(PQC_SHAKECTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
     keccak_absorb(state->ctx, SHAKE128_RATE, input, inlen, 0x1F);
 }
 
@@ -623,16 +603,12 @@ void shake128_squeezeblocks(uint8_t *output, size_t nblocks, shake128ctx *state)
 }
 
 void shake128_ctx_clone(shake128ctx *dest, const shake128ctx *src) {
-    dest->ctx = malloc(PQC_SHAKECTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
     memcpy(dest->ctx, src->ctx, PQC_SHAKECTX_BYTES);
 }
 
 /** Release the allocated state. Call only once. */
 void shake128_ctx_release(shake128ctx *state) {
-    free(state->ctx);
+  
 }
 
 /*************************************************
@@ -647,10 +623,6 @@ void shake128_ctx_release(shake128ctx *state) {
  *              - size_t inlen: length of input in bytes
  **************************************************/
 void shake256_absorb(shake256ctx *state, const uint8_t *input, size_t inlen) {
-    state->ctx = malloc(PQC_SHAKECTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
     keccak_absorb(state->ctx, SHAKE256_RATE, input, inlen, 0x1F);
 }
 
@@ -671,16 +643,12 @@ void shake256_squeezeblocks(uint8_t *output, size_t nblocks, shake256ctx *state)
 }
 
 void shake256_ctx_clone(shake256ctx *dest, const shake256ctx *src) {
-    dest->ctx = malloc(PQC_SHAKECTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
     memcpy(dest->ctx, src->ctx, PQC_SHAKECTX_BYTES);
 }
 
 /** Release the allocated state. Call only once. */
 void shake256_ctx_release(shake256ctx *state) {
-    free(state->ctx);
+    
 }
 
 /*************************************************
@@ -746,23 +714,16 @@ void shake256(uint8_t *output, size_t outlen,
 }
 
 void sha3_256_inc_init(sha3_256incctx *state) {
-    state->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
+
     keccak_inc_init(state->ctx);
 }
 
 void sha3_256_inc_ctx_clone(sha3_256incctx *dest, const sha3_256incctx *src) {
-    dest->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
+
     memcpy(dest->ctx, src->ctx, PQC_SHAKEINCCTX_BYTES);
 }
 
 void sha3_256_inc_ctx_release(sha3_256incctx *state) {
-    free(state->ctx);
 }
 
 void sha3_256_inc_absorb(sha3_256incctx *state, const uint8_t *input, size_t inlen) {
@@ -807,18 +768,12 @@ void sha3_256(uint8_t *output, const uint8_t *input, size_t inlen) {
 }
 
 void sha3_384_inc_init(sha3_384incctx *state) {
-    state->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
+
     keccak_inc_init(state->ctx);
 }
 
 void sha3_384_inc_ctx_clone(sha3_384incctx *dest, const sha3_384incctx *src) {
-    dest->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
+
     memcpy(dest->ctx, src->ctx, PQC_SHAKEINCCTX_BYTES);
 }
 
@@ -827,7 +782,6 @@ void sha3_384_inc_absorb(sha3_384incctx *state, const uint8_t *input, size_t inl
 }
 
 void sha3_384_inc_ctx_release(sha3_384incctx *state) {
-    free(state->ctx);
 }
 
 void sha3_384_inc_finalize(uint8_t *output, sha3_384incctx *state) {
@@ -868,18 +822,12 @@ void sha3_384(uint8_t *output, const uint8_t *input, size_t inlen) {
 }
 
 void sha3_512_inc_init(sha3_512incctx *state) {
-    state->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (state->ctx == NULL) {
-        exit(111);
-    }
+
     keccak_inc_init(state->ctx);
 }
 
 void sha3_512_inc_ctx_clone(sha3_512incctx *dest, const sha3_512incctx *src) {
-    dest->ctx = malloc(PQC_SHAKEINCCTX_BYTES);
-    if (dest->ctx == NULL) {
-        exit(111);
-    }
+
     memcpy(dest->ctx, src->ctx, PQC_SHAKEINCCTX_BYTES);
 }
 
@@ -888,7 +836,6 @@ void sha3_512_inc_absorb(sha3_512incctx *state, const uint8_t *input, size_t inl
 }
 
 void sha3_512_inc_ctx_release(sha3_512incctx *state) {
-    free(state->ctx);
 }
 
 void sha3_512_inc_finalize(uint8_t *output, sha3_512incctx *state) {
